@@ -56,7 +56,9 @@ export function useActiveTabHost(): { url: string | null; host: string | null } 
     let alive = true;
     const refresh = async () => {
       try {
-        const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+        let [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+        // Fall back when the side panel is the focused surface and no tab came back.
+        if (!tab?.url) [tab] = await browser.tabs.query({ active: true, currentWindow: true });
         if (alive) setUrl(tab?.url ?? null);
       } catch {
         if (alive) setUrl(null);

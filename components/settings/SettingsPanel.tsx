@@ -19,6 +19,7 @@ export function SettingsPanel() {
 
   return (
     <div className="overflow-y-auto pb-24">
+      <CurrentSiteCard settings={settings} />
       <Section title="Nagging" desc="The master switch for the whole annoyance engine.">
         <ToggleRow
           label="Enable nags"
@@ -114,7 +115,6 @@ export function SettingsPanel() {
       </Section>
 
       <Section title="Where to nag" desc="Choose which sites count as time-wasting.">
-        <CurrentSiteRow settings={settings} />
         <Segmented
           value={settings.targetingMode}
           onChange={(targetingMode) => update({ targetingMode })}
@@ -138,27 +138,45 @@ export function SettingsPanel() {
   );
 }
 
-function CurrentSiteRow({ settings }: { settings: Settings }) {
-  const { host } = useActiveTabHost();
-  if (!host) return null;
-  const targeted = isTargetSite(`https://${host}`, settings);
-  const normalized = normalizePattern(host);
-  const inList = settings.sites.some((s) => normalizePattern(s.pattern) === normalized);
+function CurrentSiteCard({ settings }: { settings: Settings }) {
+  const { url, host } = useActiveTabHost();
+  const isWeb = !!url && /^https?:/i.test(url);
+  const normalized = host ? normalizePattern(host) : '';
+  const inList = !!normalized && settings.sites.some((s) => normalizePattern(s.pattern) === normalized);
+  const targeted = isWeb && isTargetSite(url as string, settings);
+
   return (
-    <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
-      <div className="min-w-0">
-        <p className="truncate text-xs font-medium text-slate-600">{host}</p>
-        <p className="text-[11px] text-slate-400">
-          {targeted ? '✓ nags fire on this site' : 'not a target — silent here'}
-        </p>
-      </div>
-      {settings.targetingMode === 'list' && !inList && (
-        <Button
-          variant="primary"
-          onClick={() => update({ sites: [...settings.sites, { pattern: normalized, enabled: true }] })}
-        >
-          ➕ Add
-        </Button>
+    <div className="border-b border-violet-100 bg-violet-50 px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Current site</p>
+      {!isWeb ? (
+        <p className="mt-1 text-xs text-slate-500">Open a normal website to add it to your time-wasting list.</p>
+      ) : (
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-800">{host}</p>
+            <p className="text-[11px] text-slate-500">
+              {targeted ? '✓ nags fire here' : 'not a target — silent here'}
+            </p>
+          </div>
+          {settings.targetingMode === 'all' ? (
+            <span className="shrink-0 text-[11px] text-slate-400">nagging every site</span>
+          ) : inList ? (
+            <Button
+              onClick={() =>
+                update({ sites: settings.sites.filter((s) => normalizePattern(s.pattern) !== normalized) })
+              }
+            >
+              Remove
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              onClick={() => update({ sites: [...settings.sites, { pattern: normalized, enabled: true }] })}
+            >
+              ➕ Add this site
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
