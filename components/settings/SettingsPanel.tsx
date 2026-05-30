@@ -18,7 +18,7 @@ export function SettingsPanel() {
     : 0;
 
   return (
-    <div className="overflow-y-auto pb-24">
+    <div className="h-full overflow-y-auto pb-24">
       <CurrentSiteCard settings={settings} />
       <Section title="Nagging" desc="The master switch for the whole annoyance engine.">
         <ToggleRow
