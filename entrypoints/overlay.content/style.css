@@ -1,0 +1,293 @@
+/*
+ * Overlay styles. Injected into the content script's Shadow DOM (cssInjectionMode: 'ui'),
+ * so page CSS can't reach our elements. We still defend against *inherited* properties
+ * (font, color, visibility) that cross the shadow boundary from the host page.
+ */
+
+.ae-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none; /* click-through when idle; children re-enable it */
+  /* defensive resets against inherited page styles */
+  visibility: visible !important;
+  opacity: 1 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #1e293b;
+  text-align: left;
+  letter-spacing: normal;
+}
+.ae-layer * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ---------- Slide-in card ---------- */
+.ae-card {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 320px;
+  max-width: calc(100vw - 40px);
+  pointer-events: auto;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.22);
+  padding: 16px;
+  overflow: hidden;
+}
+.ae-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, #8b5cf6, #ec4899);
+}
+.ae-card--lg {
+  width: 380px;
+  padding: 20px;
+}
+
+.ae-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8b5cf6;
+}
+.ae-eyebrow--center {
+  justify-content: center;
+}
+.ae-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 6px;
+  background: #8b5cf6;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+.ae-tag {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 700;
+  color: #ef4444;
+  background: #fee2e2;
+  padding: 2px 6px;
+  border-radius: 999px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ae-msg {
+  margin-top: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+.ae-card--lg .ae-msg {
+  font-size: 18px;
+}
+
+.ae-taskchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  max-width: 100%;
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #475569;
+}
+.ae-taskchip--center {
+  margin-left: auto;
+  margin-right: auto;
+}
+.ae-taskchip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ae-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.ae-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.ae-actions--stack {
+  flex-direction: column;
+}
+
+.ae-btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  background: #f1f5f9;
+  color: #334155;
+  transition: transform 0.06s ease, background 0.15s ease, opacity 0.15s ease;
+}
+.ae-btn:hover {
+  background: #e2e8f0;
+}
+.ae-btn:active {
+  transform: scale(0.97);
+}
+.ae-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ae-btn--primary {
+  background: #8b5cf6;
+  color: #fff;
+}
+.ae-btn--primary:hover {
+  background: #7c3aed;
+}
+.ae-btn--ghost {
+  background: transparent;
+  color: #94a3b8;
+}
+.ae-btn--ghost:hover {
+  background: #f1f5f9;
+}
+.ae-btn--lg {
+  padding: 12px 18px;
+  font-size: 15px;
+  width: 100%;
+}
+
+/* ---------- Full-screen takeover ---------- */
+.ae-backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.ae-modal {
+  width: 440px;
+  max-width: 100%;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.4);
+  padding: 28px;
+  text-align: center;
+}
+.ae-modal-msg {
+  margin-top: 14px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.ae-modal .ae-actions {
+  margin-top: 22px;
+}
+
+/* ---------- Animations ---------- */
+@keyframes ae-slide-in {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.ae-slide-in {
+  animation: ae-slide-in 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ae-out {
+  to {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+.ae-card.ae-out {
+  animation: ae-out 0.26s ease forwards;
+}
+.ae-backdrop.ae-out {
+  animation: ae-fade-out 0.26s ease forwards;
+}
+
+@keyframes ae-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.ae-fade-in {
+  animation: ae-fade-in 0.2s ease;
+}
+@keyframes ae-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes ae-pop-in {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.ae-pop-in {
+  animation: ae-pop-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ae-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+/* Shake once shortly after appearing, for personality. */
+.ae-shake {
+  animation: ae-shake 0.5s ease 0.45s 1;
+}
+.ae-modal.ae-shake {
+  animation: ae-pop-in 0.28s cubic-bezier(0.16, 1, 0.3, 1), ae-shake 0.5s ease 0.5s 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ae-slide-in, .ae-fade-in, .ae-pop-in, .ae-shake, .ae-card.ae-out, .ae-backdrop.ae-out {
+    animation: none;
+  }
+}
