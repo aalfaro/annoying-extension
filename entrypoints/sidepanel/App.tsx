@@ -1,17 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { repo } from '@/data';
 import { useSettings, useTasks } from '@/state/hooks';
 import { Segmented, Toggle } from '@/components/ui';
 import { Board } from '@/components/kanban/Board';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
+import { RecurringPanel } from '@/components/recurring/RecurringPanel';
 
-type Tab = 'board' | 'settings';
+type Tab = 'board' | 'recurring' | 'settings';
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('board');
   const settings = useSettings();
   const tasks = useTasks();
   const openCount = tasks.filter((t) => t.status !== 'done').length;
+
+  // Materialize today's recurring instances whenever the panel opens.
+  useEffect(() => {
+    void repo.generateRecurringInstances();
+  }, []);
 
   return (
     <div className="flex h-full flex-col bg-slate-50 text-slate-900">
@@ -43,13 +49,16 @@ export default function App() {
           onChange={setTab}
           options={[
             { value: 'board', label: 'Board' },
+            { value: 'recurring', label: 'Recurring' },
             { value: 'settings', label: 'Settings' },
           ]}
         />
       </div>
 
       <main className="relative flex-1 overflow-hidden">
-        {tab === 'board' ? <Board /> : <SettingsPanel />}
+        {tab === 'board' && <Board />}
+        {tab === 'recurring' && <RecurringPanel />}
+        {tab === 'settings' && <SettingsPanel />}
       </main>
     </div>
   );

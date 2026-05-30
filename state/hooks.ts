@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { repo } from '@/data';
-import type { Project, Settings, Task } from '@/data/types';
+import type { Project, RecurringTask, Settings, Task } from '@/data/types';
 
 function useStorageBacked<T>(storageKey: string, load: () => Promise<T>, initial: T): T {
   const [value, setValue] = useState<T>(initial);
@@ -38,6 +38,10 @@ export function useTasks(): Task[] {
 
 export function useProjects(): Project[] {
   return useStorageBacked('projects', () => repo.listProjects(), []);
+}
+
+export function useRecurring(): RecurringTask[] {
+  return useStorageBacked('recurringTasks', () => repo.listRecurring(), []);
 }
 
 export function useSettings(): Settings | null {

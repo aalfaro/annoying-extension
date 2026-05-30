@@ -6,4 +6,11 @@ import type { Repository } from './repository';
 export const repo: Repository = new LocalRepository();
 
 export * from './types';
-export type { NewTaskInput, ProjectPatch, Repository, TaskPatch } from './repository';
+export type {
+  NewRecurringInput,
+  NewTaskInput,
+  ProjectPatch,
+  RecurringPatch,
+  Repository,
+  TaskPatch,
+} from './repository';

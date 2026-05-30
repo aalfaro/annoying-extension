@@ -130,8 +130,22 @@ export function Board() {
   const defaultProjectId: ID | null = selected === 'all' ? null : selected;
 
   const saveTask = async (draft: TaskDraft) => {
-    if (editor?.mode === 'edit' && editor.task) await repo.updateTask(editor.task.id, draft);
-    else await repo.createTask({ ...draft });
+    const { daysOfWeek, ...rest } = draft;
+    if (editor?.mode === 'edit' && editor.task) {
+      await repo.updateTask(editor.task.id, rest);
+    } else if (daysOfWeek.length > 0) {
+      // Recurrence selected → create a repeating rule and materialize today's instance.
+      await repo.createRecurring({
+        title: rest.title,
+        notes: rest.notes,
+        priority: rest.priority,
+        projectId: rest.projectId,
+        daysOfWeek,
+      });
+      await repo.generateRecurringInstances();
+    } else {
+      await repo.createTask(rest);
+    }
     setEditor(null);
   };
 
@@ -220,6 +234,7 @@ export function Board() {
           task={editor.mode === 'edit' ? editor.task ?? null : null}
           projects={projects}
           defaultProjectId={defaultProjectId}
+          allowRecurrence={editor.mode === 'new'}
           onSave={saveTask}
           onDelete={
             editor.mode === 'edit' && editor.task
