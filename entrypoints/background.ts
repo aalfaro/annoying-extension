@@ -12,6 +12,7 @@ import { nagMessage } from '@/nag/messages';
 import { isRuntimeMessage, sendNagToTab } from '@/lib/messaging';
 
 const ALARM = 'nag-tick';
+const ROLLOVER = 'daily-rollover';
 const DWELL_KEY = 'rt:dwell';
 
 interface Dwell {
@@ -38,6 +39,17 @@ async function scheduleNext(seconds: number): Promise<void> {
   await browser.alarms.create(ALARM, { delayInMinutes: Math.max(0.5, seconds / 60) });
 }
 
+/** ms until the next local 00:05, the daily boundary for spawning recurring tasks. */
+function msUntilNextRollover(now = new Date()): number {
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 5, 0, 0);
+  if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
+  return next.getTime() - now.getTime();
+}
+
+async function scheduleRollover(): Promise<void> {
+  await browser.alarms.create(ROLLOVER, { when: Date.now() + msUntilNextRollover() });
+}
+
 /** Keep the dwell timer in sync with whatever the active tab currently is. */
 async function refreshDwell(): Promise<void> {
   const tab = await getActiveTab();
@@ -52,6 +64,9 @@ async function refreshDwell(): Promise<void> {
 }
 
 async function tick(): Promise<void> {
+  // Self-healing: make sure today's recurring instances exist before we nag.
+  await repo.generateRecurringInstances();
+
   const settings = await repo.getSettings();
 
   if (!settings.enabled || (settings.snoozeUntil && settings.snoozeUntil > Date.now())) {
@@ -108,6 +123,7 @@ async function handleAction(taskId: string, action: NagAction): Promise<void> {
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener(async () => {
     await repo.ensureSeeded();
+    await repo.generateRecurringInstances();
     try {
       // Clicking the toolbar icon opens the side-panel task board.
       await browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -115,20 +131,32 @@ export default defineBackground(() => {
       /* sidePanel not available (older Chrome / Firefox) */
     }
     await scheduleNext(20);
+    await scheduleRollover();
   });
 
   browser.runtime.onStartup.addListener(async () => {
     await repo.ensureSeeded();
+    await repo.generateRecurringInstances();
     await scheduleNext(30);
+    await scheduleRollover();
   });
 
-  // Heal the alarm if the worker restarted without one.
+  // Heal the alarms if the worker restarted without them.
   void browser.alarms.get(ALARM).then((a) => {
     if (!a) void scheduleNext(30);
+  });
+  void browser.alarms.get(ROLLOVER).then((a) => {
+    if (!a) void scheduleRollover();
   });
 
   browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === ALARM) void tick();
+    if (alarm.name === ROLLOVER) {
+      void (async () => {
+        await repo.generateRecurringInstances();
+        await scheduleRollover();
+      })();
+    }
   });
 
   // Track dwell on time-wasting sites for escalation.

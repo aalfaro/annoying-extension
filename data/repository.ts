@@ -1,7 +1,16 @@
 // The single data-access contract the rest of the app talks to. Today it's backed by
 // chrome.storage (LocalRepository); swapping in an ApiRepository later (for a hosted,
 // multi-device app) means implementing this interface and changing one line in index.ts.
-import type { ID, Priority, Project, Settings, Task, TaskStatus, User } from './types';
+import type {
+  ID,
+  Priority,
+  Project,
+  RecurringTask,
+  Settings,
+  Task,
+  TaskStatus,
+  User,
+} from './types';
 
 export interface NewTaskInput {
   title: string;
@@ -10,6 +19,8 @@ export interface NewTaskInput {
   priority?: Priority;
   status?: TaskStatus;
   dueDate?: number;
+  templateId?: ID;
+  recurrenceDate?: string;
 }
 
 export type TaskPatch = Partial<
@@ -17,6 +28,18 @@ export type TaskPatch = Partial<
 >;
 
 export type ProjectPatch = Partial<Pick<Project, 'name' | 'color' | 'order'>>;
+
+export interface NewRecurringInput {
+  title: string;
+  daysOfWeek: number[];
+  projectId?: ID | null;
+  notes?: string;
+  priority?: Priority;
+}
+
+export type RecurringPatch = Partial<
+  Pick<RecurringTask, 'title' | 'notes' | 'priority' | 'projectId' | 'daysOfWeek' | 'active'>
+>;
 
 export interface Repository {
   /** Make sure a user, default settings, and first-run sample data exist. */
@@ -35,6 +58,13 @@ export interface Repository {
   /** Move a task to a status column at a given index, renumbering affected columns. */
   moveTask(id: ID, toStatus: TaskStatus, toIndex: number): Promise<void>;
   deleteTask(id: ID): Promise<void>;
+
+  listRecurring(): Promise<RecurringTask[]>;
+  createRecurring(input: NewRecurringInput): Promise<RecurringTask>;
+  updateRecurring(id: ID, patch: RecurringPatch): Promise<void>;
+  deleteRecurring(id: ID): Promise<void>;
+  /** Spawn Task instances for any rules due today. Idempotent; returns count created. */
+  generateRecurringInstances(now?: Date): Promise<number>;
 
   getSettings(): Promise<Settings>;
   updateSettings(patch: Partial<Settings>): Promise<Settings>;

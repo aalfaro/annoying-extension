@@ -1,7 +1,7 @@
 // Pure factory functions for first-run defaults. No storage access here on purpose —
 // LocalRepository.ensureSeeded() does the orchestration.
 import { uid } from '@/lib/ids';
-import type { Project, Settings, SiteRule, Task, User } from './types';
+import type { Project, RecurringTask, Settings, SiteRule, Task, User } from './types';
 
 export function makeUser(): User {
   return { id: uid(), createdAt: Date.now() };
@@ -76,4 +76,22 @@ export function sampleProjectAndTasks(userId: string): { project: Project; tasks
     t('Set up Annoying-extension ✅', 'done', 'med', 0),
   ];
   return { project, tasks };
+}
+
+/** A demo repeating rule so the Recurring tab isn't empty on first run. */
+export function sampleRecurring(userId: string): RecurringTask[] {
+  const now = Date.now();
+  return [
+    {
+      id: uid(),
+      userId,
+      projectId: null,
+      title: 'Workout 💪',
+      priority: 'med',
+      daysOfWeek: [1, 2, 3, 4, 5], // weekdays
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
 }

@@ -53,6 +53,11 @@ export const TaskCardView = forwardRef<HTMLDivElement, ViewProps>(function TaskC
           {task.notes && <p className="mt-0.5 line-clamp-2 text-xs text-slate-400">{task.notes}</p>}
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <PriorityPill priority={task.priority} />
+            {task.templateId && (
+              <span className="text-[11px] leading-none text-violet-500" title="Repeating task">
+                ↻
+              </span>
+            )}
             {project && (
               <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: project.color }} />

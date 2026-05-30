@@ -2,7 +2,7 @@
 // (older versions, manual edits, corruption), so we parse defensively: invalid records
 // are dropped rather than crashing the UI.
 import { z } from 'zod';
-import type { Project, Settings, SyncMeta, Task, User } from './types';
+import type { Project, RecurringTask, Settings, SyncMeta, Task, User } from './types';
 
 const userSchema = z.object({
   id: z.string(),
@@ -34,6 +34,22 @@ const taskSchema = z.object({
   createdAt: z.number(),
   updatedAt: z.number(),
   completedAt: z.number().optional(),
+  templateId: z.string().optional(),
+  recurrenceDate: z.string().optional(),
+});
+
+const recurringTaskSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  projectId: z.string().nullable(),
+  title: z.string(),
+  notes: z.string().optional(),
+  priority: z.enum(['low', 'med', 'high']),
+  daysOfWeek: z.array(z.number()),
+  active: z.boolean(),
+  lastSpawnedDate: z.string().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
 });
 
 const siteRuleSchema = z.object({
@@ -85,6 +101,16 @@ export function parseTasks(raw: unknown): Task[] | undefined {
   const out: Task[] = [];
   for (const item of raw) {
     const r = taskSchema.safeParse(item);
+    if (r.success) out.push(r.data);
+  }
+  return out;
+}
+
+export function parseRecurring(raw: unknown): RecurringTask[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: RecurringTask[] = [];
+  for (const item of raw) {
+    const r = recurringTaskSchema.safeParse(item);
     if (r.success) out.push(r.data);
   }
   return out;

@@ -38,6 +38,24 @@ export interface Task {
   createdAt: number;
   updatedAt: number;
   completedAt?: number;
+  templateId?: ID; // set when this task was spawned from a RecurringTask
+  recurrenceDate?: string; // 'YYYY-MM-DD' the instance was generated for
+}
+
+// A repeating rule. On each scheduled weekday it spawns a normal Task instance
+// (tagged with templateId). The rule itself never appears on the board.
+export interface RecurringTask {
+  id: ID;
+  userId: ID;
+  projectId: ID | null;
+  title: string;
+  notes?: string;
+  priority: Priority;
+  daysOfWeek: number[]; // 0 = Sunday .. 6 = Saturday
+  active: boolean;
+  lastSpawnedDate?: string; // 'YYYY-MM-DD' last day we evaluated/spawned
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface SiteRule {
@@ -67,7 +85,7 @@ export interface Settings {
 }
 
 // Bumped when the stored shape changes; drives future migrations.
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export interface SyncMeta {
   schemaVersion: number;

@@ -2,16 +2,33 @@
 // schema.ts; writes touch the sync metadata so a future backend can detect local changes.
 import { browser } from 'wxt/browser';
 import { uid } from '@/lib/ids';
-import type { NewTaskInput, ProjectPatch, Repository, TaskPatch } from './repository';
-import { parseMeta, parseProjects, parseSettings, parseTasks, parseUser } from './schema';
-import { defaultSettings, makeUser, sampleProjectAndTasks } from './seed';
+import { parseDateInput } from '@/lib/time';
+import { dayKey, shouldSpawn } from '@/lib/recurrence';
+import type {
+  NewRecurringInput,
+  NewTaskInput,
+  ProjectPatch,
+  RecurringPatch,
+  Repository,
+  TaskPatch,
+} from './repository';
+import {
+  parseMeta,
+  parseProjects,
+  parseRecurring,
+  parseSettings,
+  parseTasks,
+  parseUser,
+} from './schema';
+import { defaultSettings, makeUser, sampleProjectAndTasks, sampleRecurring } from './seed';
 import { SCHEMA_VERSION } from './types';
-import type { ID, Project, Settings, Task, TaskStatus, User } from './types';
+import type { ID, Project, RecurringTask, Settings, Task, TaskStatus, User } from './types';
 
 const K = {
   user: 'user',
   projects: 'projects',
   tasks: 'tasks',
+  recurring: 'recurringTasks',
   settings: 'settings',
   meta: 'meta',
 } as const;
@@ -51,6 +68,9 @@ export class LocalRepository implements Repository {
       const { project, tasks } = sampleProjectAndTasks(user.id);
       await setRaw(K.projects, [project]);
       await setRaw(K.tasks, tasks);
+    }
+    if ((await getRaw(K.recurring)) === undefined) {
+      await setRaw(K.recurring, sampleRecurring(user.id));
     }
     if (!parseMeta(await getRaw(K.meta))) {
       await setRaw(K.meta, { schemaVersion: SCHEMA_VERSION, lastLocalChangeAt: Date.now() });
@@ -145,6 +165,8 @@ export class LocalRepository implements Repository {
       createdAt: now,
       updatedAt: now,
       completedAt: status === 'done' ? now : undefined,
+      templateId: input.templateId,
+      recurrenceDate: input.recurrenceDate,
     };
     await this.saveTasks([...tasks, task]);
     return task;
@@ -196,6 +218,86 @@ export class LocalRepository implements Repository {
   async deleteTask(id: ID): Promise<void> {
     const tasks = (await this.listTasks()).filter((t) => t.id !== id);
     await this.saveTasks(tasks);
+  }
+
+  // ---- Recurring tasks ----
+
+  async listRecurring(): Promise<RecurringTask[]> {
+    return (parseRecurring(await getRaw(K.recurring)) ?? []).sort((a, b) => a.createdAt - b.createdAt);
+  }
+
+  private async saveRecurring(items: RecurringTask[]): Promise<void> {
+    await setRaw(K.recurring, items);
+    await this.touchMeta();
+  }
+
+  async createRecurring(input: NewRecurringInput): Promise<RecurringTask> {
+    const user = await this.getUser();
+    const items = await this.listRecurring();
+    const now = Date.now();
+    const rt: RecurringTask = {
+      id: uid(),
+      userId: user.id,
+      projectId: input.projectId ?? null,
+      title: input.title.trim(),
+      notes: input.notes?.trim() || undefined,
+      priority: input.priority ?? 'med',
+      daysOfWeek: [...new Set(input.daysOfWeek)].sort((a, b) => a - b),
+      active: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await this.saveRecurring([...items, rt]);
+    return rt;
+  }
+
+  async updateRecurring(id: ID, patch: RecurringPatch): Promise<void> {
+    const items = await this.listRecurring();
+    const next = items.map((r) =>
+      r.id === id
+        ? {
+            ...r,
+            ...patch,
+            daysOfWeek: patch.daysOfWeek
+              ? [...new Set(patch.daysOfWeek)].sort((a, b) => a - b)
+              : r.daysOfWeek,
+            updatedAt: Date.now(),
+          }
+        : r,
+    );
+    await this.saveRecurring(next);
+  }
+
+  async deleteRecurring(id: ID): Promise<void> {
+    await this.saveRecurring((await this.listRecurring()).filter((r) => r.id !== id));
+  }
+
+  async generateRecurringInstances(now: Date = new Date()): Promise<number> {
+    const templates = await this.listRecurring();
+    if (templates.length === 0) return 0;
+    const tasks = await this.listTasks();
+    const today = dayKey(now);
+    const due = templates.filter((t) => shouldSpawn(t, tasks, now));
+    if (due.length === 0) return 0;
+
+    for (const tpl of due) {
+      await this.createTask({
+        title: tpl.title,
+        notes: tpl.notes,
+        priority: tpl.priority,
+        projectId: tpl.projectId,
+        status: 'todo',
+        dueDate: parseDateInput(today),
+        templateId: tpl.id,
+        recurrenceDate: today,
+      });
+    }
+
+    const dueIds = new Set(due.map((t) => t.id));
+    await this.saveRecurring(
+      templates.map((t) => (dueIds.has(t.id) ? { ...t, lastSpawnedDate: today } : t)),
+    );
+    return due.length;
   }
 
   // ---- Settings ----
