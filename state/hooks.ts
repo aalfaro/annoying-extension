@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { repo } from '@/data';
+import { hostFromUrl } from '@/lib/sites';
 import type { Project, RecurringTask, Settings, Task } from '@/data/types';
 
 function useStorageBacked<T>(storageKey: string, load: () => Promise<T>, initial: T): T {
@@ -46,4 +47,33 @@ export function useRecurring(): RecurringTask[] {
 
 export function useSettings(): Settings | null {
   return useStorageBacked<Settings | null>('settings', () => repo.getSettings(), null);
+}
+
+/** The active tab's URL + host, kept fresh as the user navigates/switches tabs. */
+export function useActiveTabHost(): { url: string | null; host: string | null } {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const refresh = async () => {
+      try {
+        const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+        if (alive) setUrl(tab?.url ?? null);
+      } catch {
+        if (alive) setUrl(null);
+      }
+    };
+    void refresh();
+    const onActivated = () => void refresh();
+    const onUpdated = (_id: number, info: { url?: string; status?: string }) => {
+      if (info.url || info.status === 'complete') void refresh();
+    };
+    browser.tabs.onActivated.addListener(onActivated);
+    browser.tabs.onUpdated.addListener(onUpdated);
+    return () => {
+      alive = false;
+      browser.tabs.onActivated.removeListener(onActivated);
+      browser.tabs.onUpdated.removeListener(onUpdated);
+    };
+  }, []);
+  return { url, host: url ? hostFromUrl(url) : null };
 }

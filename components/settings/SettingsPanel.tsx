@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { repo } from '@/data';
 import type { Intensity, SiteRule, Settings } from '@/data/types';
-import { useSettings } from '@/state/hooks';
+import { useActiveTabHost, useSettings } from '@/state/hooks';
 import { INTENSITY_PRESETS } from '@/nag/engine';
-import { normalizePattern } from '@/lib/sites';
+import { isTargetSite, normalizePattern } from '@/lib/sites';
+import { requestTestNag, type TestNagOpts } from '@/lib/messaging';
 import { Button, Segmented, Toggle } from '@/components/ui';
 
 const update = (patch: Partial<Settings>) => void repo.updateSettings(patch);
@@ -43,6 +44,8 @@ export function SettingsPanel() {
           )}
         </div>
       </Section>
+
+      <DemoSection />
 
       <Section title="How annoying?" desc="Sets how often nags fire and how pushy they get.">
         <Segmented<Intensity>
@@ -111,6 +114,7 @@ export function SettingsPanel() {
       </Section>
 
       <Section title="Where to nag" desc="Choose which sites count as time-wasting.">
+        <CurrentSiteRow settings={settings} />
         <Segmented
           value={settings.targetingMode}
           onChange={(targetingMode) => update({ targetingMode })}
@@ -131,6 +135,72 @@ export function SettingsPanel() {
         )}
       </Section>
     </div>
+  );
+}
+
+function CurrentSiteRow({ settings }: { settings: Settings }) {
+  const { host } = useActiveTabHost();
+  if (!host) return null;
+  const targeted = isTargetSite(`https://${host}`, settings);
+  const normalized = normalizePattern(host);
+  const inList = settings.sites.some((s) => normalizePattern(s.pattern) === normalized);
+  return (
+    <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
+      <div className="min-w-0">
+        <p className="truncate text-xs font-medium text-slate-600">{host}</p>
+        <p className="text-[11px] text-slate-400">
+          {targeted ? '✓ nags fire on this site' : 'not a target — silent here'}
+        </p>
+      </div>
+      {settings.targetingMode === 'list' && !inList && (
+        <Button
+          variant="primary"
+          onClick={() => update({ sites: [...settings.sites, { pattern: normalized, enabled: true }] })}
+        >
+          ➕ Add
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function DemoSection() {
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const fire = async (label: string, opts: TestNagOpts) => {
+    setBusy(true);
+    setStatus(`Sending ${label}…`);
+    const ok = await requestTestNag(opts);
+    setBusy(false);
+    setStatus(
+      ok
+        ? `✓ ${label} shown on the current page`
+        : '✗ Couldn’t reach this page — reload the tab (it also can’t run on chrome:// pages or the New Tab page).',
+    );
+  };
+
+  return (
+    <Section title="Demo & test" desc="Preview each nag style on the current page — and confirm the extension works.">
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => fire('Slide-in card', { style: 'card', level: 1 })} disabled={busy}>
+          Slide-in card
+        </Button>
+        <Button onClick={() => fire('Sticky card', { style: 'card', level: 2 })} disabled={busy}>
+          Sticky card
+        </Button>
+        <Button onClick={() => fire('Blur takeover', { style: 'takeover', level: 3 })} disabled={busy}>
+          Blur takeover
+        </Button>
+        <Button onClick={() => fire('Playful card', { style: 'card', level: 1, playful: true })} disabled={busy}>
+          Playful
+        </Button>
+        <Button variant="primary" onClick={() => fire('Test nag', {})} disabled={busy}>
+          Test nag
+        </Button>
+      </div>
+      {status && <p className="mt-3 text-xs text-slate-500">{status}</p>}
+    </Section>
   );
 }
 
