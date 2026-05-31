@@ -2,7 +2,7 @@
 // (older versions, manual edits, corruption), so we parse defensively: invalid records
 // are dropped rather than crashing the UI.
 import { z } from 'zod';
-import type { Project, RecurringTask, Settings, SyncMeta, Task, User } from './types';
+import type { BackupBundle, Project, RecurringTask, Settings, SyncMeta, Task, User } from './types';
 
 const userSchema = z.object({
   id: z.string(),
@@ -79,6 +79,27 @@ const settingsSchema = z.object({
 const metaSchema = z.object({
   schemaVersion: z.number(),
   lastLocalChangeAt: z.number(),
+  lastExportAt: z.number().optional(),
+  lastImportAt: z.number().optional(),
+});
+
+const backupBundleSchema = z.object({
+  format: z.literal('annoying-extension-backup'),
+  schemaVersion: z.number(),
+  appVersion: z.string(),
+  exportedAt: z.number(),
+  user: z.object({
+    id: z.string(),
+    email: z.string().optional(),
+    displayName: z.string().optional(),
+  }),
+  sections: z.array(z.enum(['board', 'recurring', 'sites', 'preferences'])),
+  data: z.object({
+    projects: z.array(projectSchema).optional(),
+    tasks: z.array(taskSchema).optional(),
+    recurringTasks: z.array(recurringTaskSchema).optional(),
+    settings: settingsSchema.partial().optional(),
+  }),
 });
 
 export function parseUser(raw: unknown): User | undefined {
@@ -124,4 +145,10 @@ export function parseSettings(raw: unknown): Settings | undefined {
 export function parseMeta(raw: unknown): SyncMeta | undefined {
   const r = metaSchema.safeParse(raw);
   return r.success ? r.data : undefined;
+}
+
+/** Validate an uploaded backup file. Returns null when it isn't our format. */
+export function parseBundle(raw: unknown): BackupBundle | null {
+  const r = backupBundleSchema.safeParse(raw);
+  return r.success ? (r.data as BackupBundle) : null;
 }

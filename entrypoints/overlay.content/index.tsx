@@ -9,6 +9,12 @@ export default defineContentScript({
   cssInjectionMode: 'ui',
   runAt: 'document_idle',
   async main(ctx) {
+    // The background may re-inject this script (via scripting.executeScript) into tabs that
+    // were open before the extension loaded. Guard so we mount/listen exactly once per page.
+    const w = window as unknown as { __annoyingMounted?: boolean };
+    if (w.__annoyingMounted) return;
+    w.__annoyingMounted = true;
+
     const ui = await createShadowRootUi(ctx, {
       name: 'annoying-extension-overlay',
       position: 'inline',

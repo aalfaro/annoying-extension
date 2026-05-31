@@ -4,6 +4,7 @@ import { browser } from 'wxt/browser';
 import { uid } from '@/lib/ids';
 import { parseDateInput } from '@/lib/time';
 import { dayKey, shouldSpawn } from '@/lib/recurrence';
+import { applyBundle, buildBundle, type ImportMode } from '@/lib/backup';
 import type {
   NewRecurringInput,
   NewTaskInput,
@@ -11,6 +12,7 @@ import type {
   RecurringPatch,
   Repository,
   TaskPatch,
+  UserPatch,
 } from './repository';
 import {
   parseMeta,
@@ -22,7 +24,18 @@ import {
 } from './schema';
 import { defaultSettings, makeUser, sampleProjectAndTasks, sampleRecurring } from './seed';
 import { SCHEMA_VERSION } from './types';
-import type { ID, Project, RecurringTask, Settings, Task, TaskStatus, User } from './types';
+import type {
+  BackupBundle,
+  BackupSectionId,
+  ID,
+  Project,
+  RecurringTask,
+  Settings,
+  SyncMeta,
+  Task,
+  TaskStatus,
+  User,
+} from './types';
 
 const K = {
   user: 'user',
@@ -84,6 +97,78 @@ export class LocalRepository implements Repository {
       await setRaw(K.user, user);
     }
     return user;
+  }
+
+  async updateUser(patch: UserPatch): Promise<User> {
+    const user = await this.getUser();
+    const next: User = {
+      ...user,
+      email: patch.email !== undefined ? patch.email.trim() || undefined : user.email,
+      displayName:
+        patch.displayName !== undefined ? patch.displayName.trim() || undefined : user.displayName,
+    };
+    await setRaw(K.user, next);
+    await this.touchMeta();
+    return next;
+  }
+
+  async getMeta(): Promise<SyncMeta> {
+    return parseMeta(await getRaw(K.meta)) ?? { schemaVersion: SCHEMA_VERSION, lastLocalChangeAt: 0 };
+  }
+
+  private async stampMeta(patch: Partial<SyncMeta>): Promise<void> {
+    const meta = await this.getMeta();
+    await setRaw(K.meta, { ...meta, ...patch });
+  }
+
+  // ---- Backup ----
+
+  async exportBundle(sections: BackupSectionId[]): Promise<BackupBundle> {
+    const [user, projects, tasks, recurringTasks, settings] = await Promise.all([
+      this.getUser(),
+      this.listProjects(),
+      this.listTasks(),
+      this.listRecurring(),
+      this.getSettings(),
+    ]);
+    const appVersion = browser.runtime.getManifest().version;
+    const bundle = buildBundle(
+      { user, projects, tasks, recurringTasks, settings },
+      sections,
+      appVersion,
+      Date.now(),
+    );
+    await this.stampMeta({ lastExportAt: Date.now() });
+    return bundle;
+  }
+
+  async importBundle(
+    bundle: BackupBundle,
+    sections: BackupSectionId[],
+    mode: ImportMode,
+  ): Promise<void> {
+    const [user, projects, tasks, recurringTasks, settings] = await Promise.all([
+      this.getUser(),
+      this.listProjects(),
+      this.listTasks(),
+      this.listRecurring(),
+      this.getSettings(),
+    ]);
+    const next = applyBundle({ user, projects, tasks, recurringTasks, settings }, bundle, sections, mode);
+    const applied = sections.filter((s) => bundle.sections.includes(s));
+    const now = Date.now();
+
+    if (applied.includes('board')) {
+      await setRaw(K.projects, next.projects);
+      await setRaw(K.tasks, next.tasks);
+    }
+    if (applied.includes('recurring')) {
+      await setRaw(K.recurring, next.recurringTasks);
+    }
+    if (applied.includes('sites') || applied.includes('preferences')) {
+      await setRaw(K.settings, { ...next.settings, updatedAt: now });
+    }
+    await this.stampMeta({ lastImportAt: now, lastLocalChangeAt: now });
   }
 
   // ---- Projects ----

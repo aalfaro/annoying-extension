@@ -90,6 +90,27 @@ export const SCHEMA_VERSION = 2;
 export interface SyncMeta {
   schemaVersion: number;
   lastLocalChangeAt: number;
+  lastExportAt?: number;
+  lastImportAt?: number;
+}
+
+// ---- Backup / restore (export & import) ----
+
+export type BackupSectionId = 'board' | 'recurring' | 'sites' | 'preferences';
+
+export interface BackupBundle {
+  format: 'annoying-extension-backup';
+  schemaVersion: number;
+  appVersion: string;
+  exportedAt: number;
+  user: { id: ID; email?: string; displayName?: string };
+  sections: BackupSectionId[];
+  data: {
+    projects?: Project[];
+    tasks?: Task[];
+    recurringTasks?: RecurringTask[];
+    settings?: Partial<Settings>;
+  };
 }
 
 // ---- Runtime nag payload (background -> content script) ----

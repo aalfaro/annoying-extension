@@ -5,8 +5,9 @@ import { Segmented, Toggle } from '@/components/ui';
 import { Board } from '@/components/kanban/Board';
 import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import { RecurringPanel } from '@/components/recurring/RecurringPanel';
+import { BackupPanel } from '@/components/backup/BackupPanel';
 
-type Tab = 'board' | 'recurring' | 'settings';
+type Tab = 'board' | 'recurring' | 'settings' | 'backup';
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('board');
@@ -43,7 +44,7 @@ export default function App() {
         )}
       </header>
 
-      <div className="border-b border-slate-200 bg-white px-3 py-2">
+      <div className="overflow-x-auto border-b border-slate-200 bg-white px-3 py-2">
         <Segmented<Tab>
           value={tab}
           onChange={setTab}
@@ -51,6 +52,7 @@ export default function App() {
             { value: 'board', label: 'Board' },
             { value: 'recurring', label: 'Recurring' },
             { value: 'settings', label: 'Settings' },
+            { value: 'backup', label: 'Backup' },
           ]}
         />
       </div>
@@ -59,6 +61,7 @@ export default function App() {
         {tab === 'board' && <Board />}
         {tab === 'recurring' && <RecurringPanel />}
         {tab === 'settings' && <SettingsPanel />}
+        {tab === 'backup' && <BackupPanel />}
       </main>
     </div>
   );

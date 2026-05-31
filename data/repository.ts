@@ -1,16 +1,25 @@
 // The single data-access contract the rest of the app talks to. Today it's backed by
 // chrome.storage (LocalRepository); swapping in an ApiRepository later (for a hosted,
 // multi-device app) means implementing this interface and changing one line in index.ts.
+import type { ImportMode } from '@/lib/backup';
 import type {
+  BackupBundle,
+  BackupSectionId,
   ID,
   Priority,
   Project,
   RecurringTask,
   Settings,
+  SyncMeta,
   Task,
   TaskStatus,
   User,
 } from './types';
+
+export interface UserPatch {
+  email?: string;
+  displayName?: string;
+}
 
 export interface NewTaskInput {
   title: string;
@@ -46,6 +55,13 @@ export interface Repository {
   ensureSeeded(): Promise<void>;
 
   getUser(): Promise<User>;
+  updateUser(patch: UserPatch): Promise<User>;
+  getMeta(): Promise<SyncMeta>;
+
+  /** Build a backup bundle from the selected sections. */
+  exportBundle(sections: BackupSectionId[]): Promise<BackupBundle>;
+  /** Apply a backup bundle (replace or merge) for the selected sections. */
+  importBundle(bundle: BackupBundle, sections: BackupSectionId[], mode: ImportMode): Promise<void>;
 
   listProjects(): Promise<Project[]>;
   createProject(input: { name: string; color?: string }): Promise<Project>;

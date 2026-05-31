@@ -14,8 +14,10 @@ export default defineConfig({
     name: 'Annoying-extension',
     description:
       'Your tasks, weaponized. A friendly-but-relentless to-do nagger that interrupts your doomscrolling until you actually get things done.',
-    // storage: tasks/settings · alarms: random nag scheduling · sidePanel: the task board · tabs: read the active tab URL in the background
-    permissions: ['storage', 'alarms', 'sidePanel', 'tabs'],
+    // storage: tasks/settings · alarms: random nag scheduling · sidePanel: the task board ·
+    // tabs: read the active tab URL · scripting: inject the overlay into tabs opened before the
+    // extension loaded (so nags reach already-open pages without a manual reload)
+    permissions: ['storage', 'alarms', 'sidePanel', 'tabs', 'scripting'],
     // Content script can run anywhere (it stays inert until the background tells it to nag),
     // and the background needs to read the active tab's URL to decide when to nag.
     host_permissions: ['<all_urls>'],
